@@ -9,8 +9,9 @@ import xlsxwriter
 def main():
     address = "./Datasets/completo_train_synth_dengue.csv"  # Default Dataset
     if len(sys.argv) > 1:
-        dataset = sys.argv[1]  # Dataset passed by argument
+        address = sys.argv[1]  # Dataset passed by argument
     dataset = pd.read_csv(address)
+    preProcess(dataset)
     generateStatistics(
         dataset,
         contin=[
@@ -25,6 +26,11 @@ def main():
         ],
         print_res=True
     )
+
+
+def preProcess(dataset):
+    dataset.replace(np.nan, 'NA', regex=True, inplace=True)
+    dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
 def generateStatistics(dataset, contin=None, both=None, print_res=False):
@@ -44,7 +50,7 @@ def generateStatistics(dataset, contin=None, both=None, print_res=False):
     for index, feature in enumerate(contin + both):
         plotContinuous(feature, dataset, index)
 
-
+# Creates the
 def categ_stats(feature, dataset):
     counts = dataset.groupby([feature, 'clase']).size().reset_index(name="Counts")
     index = np.unique(counts[feature])
