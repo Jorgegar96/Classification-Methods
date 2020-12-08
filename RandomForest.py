@@ -4,6 +4,7 @@ from sklearn.model_selection import KFold
 from sklearn import metrics
 import sys
 #import xlrd  # Needed to be installed even though not imported to run
+from openpyxl import load_workbook
 
 def main():
     data_route = "./Datasets/completo_train_synth_dengue.csv"  # Default
@@ -23,9 +24,7 @@ def main():
 
     _, val_res = runConfigurations(training_data, training_labels, configurations)
     conf_results = pd.concat([configurations, val_res], axis=1)
-    writer = pd.ExcelWriter('./Configurations/ConfigurationResults.xlsx', engine='xlsxwriter')
-    conf_results.to_excel(excel_writer=writer, sheet_name=sheet)
-    writer.save()
+    saveResults(conf_results, sheet)
 
 
 def dummify(dataset):
@@ -113,6 +112,16 @@ def RFCrossValidate(dataset, labels, max_depth=15, n_estimators=150, criterion='
     f1_traindict["Promedio"] = avgtrain_f1
     f1_valdict["Promedio"] = avgval_f1
     return f1_traindict, f1_valdict
+
+
+def saveResults(conf_results, sheet):
+    conf_route = 'D:\jorge\Documents\Universidad\Sistemas Inteligentes\Tareas\Classification-Methods\Configurations'
+    book = load_workbook(conf_route)
+    writer = pd.ExcelWriter(conf_route, engine='openpyxl')
+    writer.book = book
+    conf_results.to_excel(excel_writer=writer, sheet_name=sheet)
+    writer.save()
+    writer.close()
 
 
 if __name__ == "__main__":
