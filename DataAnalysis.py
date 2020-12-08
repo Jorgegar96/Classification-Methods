@@ -3,14 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sb
 import sys
-import xlsxwriter
+#import xlsxwriter  # Needed to be imported to use xlsxwriter engine
 
 
 def main():
-    address = "./Datasets/completo_train_synth_dengue.csv"  # Default Dataset
+    route = "./Datasets/completo_train_synth_dengue.csv"  # Default Dataset
     if len(sys.argv) > 1:
-        address = sys.argv[1]  # Dataset passed by argument
-    dataset = pd.read_csv(address)
+        route = sys.argv[1]  # Dataset passed by argument
+    dataset = pd.read_csv(route)
     preProcess(dataset)
     generateStatistics(
         dataset,
@@ -28,11 +28,13 @@ def main():
     )
 
 
+# Preprocess data to fix instances of 'NO' and NaN in the dataframe
 def preProcess(dataset):
     dataset.replace(np.nan, 'NA', regex=True, inplace=True)
     dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
+# Generates statistics for each feature in the dataset
 def generateStatistics(dataset, contin=None, both=None, print_res=False):
     categ_results = {}  # Stores results for categorical features
     categ = [feature for feature in dataset.columns if feature not in contin]  # List of categorical features
@@ -50,7 +52,8 @@ def generateStatistics(dataset, contin=None, both=None, print_res=False):
     for index, feature in enumerate(contin + both):
         plotContinuous(feature, dataset, index)
 
-# Creates the
+
+# Creates the contingency matrices for each categorical feature
 def categ_stats(feature, dataset):
     counts = dataset.groupby([feature, 'clase']).size().reset_index(name="Counts")
     index = np.unique(counts[feature])
@@ -67,6 +70,7 @@ def categ_stats(feature, dataset):
     return stats
 
 
+# Saves the resulting contingency matrices into an excel file, each in a different sheet
 def saveCategStats(stats):
     writer = pd.ExcelWriter('./Data-Analysis/CategoricalStats.xlsx', engine='xlsxwriter')
     for stat in stats:
@@ -74,6 +78,7 @@ def saveCategStats(stats):
     writer.save()
 
 
+# Plots BoxPlots for each continuous feature
 def plotContinuous(feature, dataset, index):
     plt.figure(figsize=(15, 5))
     sb.set(font_scale=1.5)
