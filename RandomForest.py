@@ -13,18 +13,18 @@ def main():
     conf_route = "./Configurations/Hyperparameters-RF.xlsx"  # Default
     if len(sys.argv) > 2:
         conf_route = sys.argv[2]  # Configuration file
-    sheet = "CompleteRFC"
+    sheet = "Complete"
     if len(sys.argv) > 3:
         sheet = sys.argv[3]
     dataset = pd.read_csv(data_route)
-    configurations = pd.read_excel(conf_route, sheet_name=sheet)
+    configurations = pd.read_excel(conf_route, sheet_name=f'{sheet}RFC')
 
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     training_labels = dataset['clase']
 
     _, val_res = runConfigurations(training_data, training_labels, configurations)
     conf_results = pd.concat([configurations, val_res], axis=1)
-    saveResults(conf_results, sheet)
+    saveResults(conf_results, f'{sheet}RFC')
 
 
 def dummify(dataset):
@@ -32,9 +32,7 @@ def dummify(dataset):
         "plaquetas",
         "leucocitos",
         "linfocitos",
-        "hematocritos",
-        "dias_fiebre",
-        "dias_ultima_fiebre"
+        "hematocritos"
     ]
     ret_dataset = dataset[[col for col in exclude if col in dataset.columns]]
     for col in dataset.columns:
@@ -89,19 +87,19 @@ def RFCrossValidate(dataset, labels, max_depth=15, n_estimators=150, criterion='
         )
         forest.fit(X_train, Y_train)
         predicted = forest.predict(X_train)
-        f1_traindict[f"P{index}"] = metrics.f1_score(predicted, labels.loc[train_index], average="macro")
+        f1_traindict[f"P{index}"] = metrics.f1_score(predicted, Y_train, average="macro")
         avgtrain_f1 += f1_traindict[f"P{index}"]
-        train_confm[f"cm{index+1}"] = metrics.confusion_matrix(predicted, labels.loc[train_index])
+        train_confm[f"cm{index+1}"] = metrics.confusion_matrix(predicted, Y_train)
         if print_res:
             print("-"*30)
-            print(f"Training Acc: {metrics.accuracy_score(predicted, labels.loc[train_index])}")
+            print(f"Training Acc: {metrics.accuracy_score(predicted, Y_train)}")
             print(train_confm[f"cm{index+1}"])
         predicted = forest.predict(X_test)
-        f1_valdict[f"P{index}"] = metrics.f1_score(predicted, labels.loc[test_index], average="macro")
+        f1_valdict[f"P{index}"] = metrics.f1_score(predicted, Y_test, average="macro")
         avgval_f1 += f1_valdict[f"P{index}"]
-        val_confm[f"cm{index+1}"] = metrics.confusion_matrix(predicted, labels.loc[test_index])
+        val_confm[f"cm{index+1}"] = metrics.confusion_matrix(predicted, Y_test)
         if print_res:
-            print(f"Testing Acc: {metrics.accuracy_score(predicted, labels.loc[test_index])}")
+            print(f"Testing Acc: {metrics.accuracy_score(predicted, Y_test)}")
             print(val_confm[f"cm{index+1}"])
         index += 1
     avgtrain_f1 /= k_sets
@@ -115,7 +113,7 @@ def RFCrossValidate(dataset, labels, max_depth=15, n_estimators=150, criterion='
 
 
 def saveResults(conf_results, sheet):
-    conf_route = 'D:\jorge\Documents\Universidad\Sistemas Inteligentes\Tareas\Classification-Methods\Configurations'
+    conf_route = './Configurations/ConfigurationResults.xlsx'
     book = load_workbook(conf_route)
     writer = pd.ExcelWriter(conf_route, engine='openpyxl')
     writer.book = book

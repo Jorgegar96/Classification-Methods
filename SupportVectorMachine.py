@@ -18,19 +18,19 @@ def main():
     conf_route = "./Configurations/Hyperparameters-RF.xlsx"  # Default
     if len(sys.argv) > 2:
         conf_route = sys.argv[2]  # Configuration file
-    sheet = "CompleteSVM"
+    sheet = "Complete"
     if len(sys.argv) > 3:
         sheet = sys.argv[3]
 
     dataset = pd.read_csv(data_route)
-    configurations = pd.read_excel(conf_route, sheet_name=sheet)
+    configurations = pd.read_excel(conf_route, sheet_name=f'{sheet}SVM')
 
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     training_labels = encodeLabels(dataset['clase'])
 
     _, val_res = runConfigurations(training_data, training_labels, configurations)
     conf_results = pd.concat([configurations, val_res], axis=1)
-    saveResults(conf_results, conf_route, sheet)
+    saveResults(conf_results, f'{sheet}SVM')
 
 
 def dummify(dataset):
@@ -39,8 +39,6 @@ def dummify(dataset):
         "leucocitos",
         "linfocitos",
         "hematocritos",
-        "dias_fiebre",
-        "dias_ultima_fiebre"
     ]
     ret_dataset = dataset[[col for col in exclude if col in dataset.columns]]
     for col in dataset.columns:
@@ -90,11 +88,7 @@ def SVMCrossValidate(dataset, labels, kernel='rbf', C=1.0, gamma='auto', k_sets=
         X_train, X_test = dataset.loc[train_index], dataset.loc[test_index]
         Y_train, Y_test = labels.loc[train_index], labels.loc[test_index]
         classifier = trainClassifier(X_train, Y_train, SVC(kernel=kernel, C=C, gamma=gamma, random_state=0))
-        f1_traindict[f"P{index}"], f1_valdict[f"P{index}"] = evaluate(
-            X_train.loc[train_index], Y_train.loc[train_index],
-            X_test.loc[test_index], Y_test.loc[test_index],
-            classifier
-        )
+        f1_traindict[f"P{index}"], f1_valdict[f"P{index}"] = evaluate(X_train, Y_train, X_test, Y_test, classifier)
         avgtrain_f1 += f1_traindict[f"P{index}"]
         avgval_f1 += f1_valdict[f"P{index}"]
         index += 1
@@ -137,7 +131,7 @@ def printResults(f1_test, f1_train, train_confm, val_confm):
 
 
 def saveResults(conf_results, sheet):
-    conf_route = 'D:\jorge\Documents\Universidad\Sistemas Inteligentes\Tareas\Classification-Methods\Configurations'
+    conf_route = './Configurations/ConfigurationResults.xlsx'
     book = load_workbook(conf_route)
     writer = pd.ExcelWriter(conf_route, engine='openpyxl')
     writer.book = book
