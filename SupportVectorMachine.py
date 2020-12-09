@@ -15,7 +15,7 @@ def main():
     data_route = "./Datasets/completo_train_synth_dengue.csv"  # Default
     if len(sys.argv) > 1:
         data_route = sys.argv[1]  # Dataset passed by argument
-    conf_route = "./Configurations/Hyperparameters-RF.xlsx"  # Default
+    conf_route = "./Configurations/Hyperparameters.xlsx"  # Default
     if len(sys.argv) > 2:
         conf_route = sys.argv[2]  # Configuration file
     sheet = "Complete"
