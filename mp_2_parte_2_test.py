@@ -1,13 +1,10 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import KFold
 from sklearn import metrics
 import seaborn as sb
 import matplotlib.pyplot as plt
 import sys
 from openpyxl import load_workbook
-from sklearn.preprocessing import LabelEncoder
 
 
 def main():
@@ -20,10 +17,9 @@ def main():
     sheet = "Complete"
     if len(sys.argv) > 3:
         sheet = sys.argv[2]
-    res_route = "./Configurations/TestResults.xlsx"  # Default
-    if len(sys.argv) > 4:
-        conf_route = sys.argv[3]  # Configuration file
     dataset = pd.read_csv(data_route)
+
+    preProcess(dataset)
 
     testing_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     testing_labels = dataset['clase']
@@ -43,6 +39,12 @@ def printConfusionMatrix(confm):
     plt.xlabel("True Label", fontsize=16)
     plt.ylabel("Predicted Label", fontsize=16)
     plt.show()
+
+
+# Preprocess data to fix instances of 'NO' and NaN in the dataframe
+def preProcess(dataset):
+    dataset.replace(np.nan, 'NA', regex=True, inplace=True)
+    dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
 def dummify(dataset):

@@ -28,6 +28,8 @@ def main():
 
     configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}SVM')
 
+    preProcess(dataset)
+
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     training_labels = encodeLabels(dataset['clase'])
 
@@ -61,6 +63,12 @@ def printConfusionMatrix(confm):
     plt.xlabel("True Label", fontsize=16)
     plt.ylabel("Predicted Label", fontsize=16)
     plt.show()
+
+
+# Preprocess data to fix instances of 'NO' and NaN in the dataframe
+def preProcess(dataset):
+    dataset.replace(np.nan, 'NA', regex=True, inplace=True)
+    dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
 def dummify(dataset):

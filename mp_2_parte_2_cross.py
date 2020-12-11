@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import KFold
 from sklearn import metrics
@@ -20,12 +21,20 @@ def main():
     dataset = pd.read_csv(data_route)
     configurations = pd.read_excel(conf_route, sheet_name=f'{sheet}RFC')
 
+    preProcess(dataset)
+
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     training_labels = dataset['clase']
 
     _, val_res = runConfigurations(training_data, training_labels, configurations)
     conf_results = pd.concat([configurations, val_res], axis=1)
     saveResults(conf_results, f'{sheet}RFC')
+
+
+# Preprocess data to fix instances of 'NO' and NaN in the dataframe
+def preProcess(dataset):
+    dataset.replace(np.nan, 'NA', regex=True, inplace=True)
+    dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
 def dummify(dataset):

@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.naive_bayes import GaussianNB, CategoricalNB, BernoulliNB
 from sklearn.model_selection import KFold
 from sklearn import metrics
@@ -16,8 +17,14 @@ def main():
         sheet = sys.argv[2]
 
     dataset = pd.read_csv(data_route)
-
+    preProcess(dataset)
     runConfigurations(dataset.loc[:, dataset.columns != 'clase'], dataset['clase'], sheet)
+
+
+# Preprocess data to fix instances of 'NO' and NaN in the dataframe
+def preProcess(dataset):
+    dataset.replace(np.nan, 'NA', regex=True, inplace=True)
+    dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
 def transformFeatures(dataset):

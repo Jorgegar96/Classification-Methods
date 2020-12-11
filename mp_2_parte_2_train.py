@@ -26,6 +26,8 @@ def main():
 
     configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}RFC')
 
+    preProcess(dataset)
+
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     training_labels = dataset['clase']
 
@@ -52,7 +54,7 @@ def trainWithAllData(training_data, training_labels, configuration):
     return model
 
 
-def printConfusionMatrix(confm, labels):
+def printConfusionMatrix(confm):
     labels = ['Grave', 'No Signos', 'Alarma', 'No Dengue']
     plt.title("Validation Sets Confusion Matrix", fontsize=18)
     heatmap = sb.heatmap(confm, annot=True, cbar=False, cmap='Blues', fmt='', xticklabels=labels, yticklabels=labels)
@@ -61,6 +63,12 @@ def printConfusionMatrix(confm, labels):
     plt.xlabel("True Label", fontsize=16)
     plt.ylabel("Predicted Label", fontsize=16)
     plt.show()
+
+
+# Preprocess data to fix instances of 'NO' and NaN in the dataframe
+def preProcess(dataset):
+    dataset.replace(np.nan, 'NA', regex=True, inplace=True)
+    dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
 def dummify(dataset):
