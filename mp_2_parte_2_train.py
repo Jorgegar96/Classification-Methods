@@ -6,7 +6,6 @@ from sklearn import metrics
 import seaborn as sb
 import matplotlib.pyplot as plt
 import sys
-#import xlrd  # Needed to be installed even though not imported to run
 from openpyxl import load_workbook
 from sklearn.preprocessing import LabelEncoder
 
@@ -26,17 +25,13 @@ def main():
         sheet = sys.argv[3]
     dataset = pd.read_csv(data_route)
 
-    le = LabelEncoder()
-    le.fit(dataset['clase'].values)
-    labels = le.classes_
-
     configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}RFC')
 
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     training_labels = dataset['clase']
 
     val_res, val_confm = runBestConfiguration(training_data, training_labels, configuration)
-    printConfusionMatrix(val_confm, labels)
+    printConfusionMatrix(val_confm)
     saveResults(val_res, f'{sheet}RFC')
 
     model = trainWithAllData(training_data, training_labels, configuration)
