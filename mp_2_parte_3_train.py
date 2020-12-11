@@ -1,19 +1,21 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import SVC
 from sklearn.model_selection import KFold
 from sklearn import metrics
 import seaborn as sb
 import matplotlib.pyplot as plt
 import sys
 from openpyxl import load_workbook
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 
 def main():
     data_route = "./Datasets/completo_train_synth_dengue.csv"  # Default
     if len(sys.argv) > 1:
         data_route = sys.argv[1]  # Dataset passed by argument
-    model_route = "./TrainedModels/CompleteRFC.pckl"
+    model_route = "./TrainedModels/CompleteSVM.pckl"
     if len(sys.argv) > 2:
         model_route = sys.argv[1]
     conf_route = "./Configurations/Best.xlsx"  # Default
@@ -24,35 +26,33 @@ def main():
         sheet = sys.argv[3]
     dataset = pd.read_csv(data_route)
 
-    configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}RFC')
+    configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}SVM')
 
     training_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
-    training_labels = dataset['clase']
+    training_labels = encodeLabels(dataset['clase'])
 
     val_res, val_confm = runBestConfiguration(training_data, training_labels, configuration)
     printConfusionMatrix(val_confm)
-    saveResults(val_res, f'{sheet}RFC')
+    saveResults(val_res, f'{sheet}SVM')
 
     model = trainWithAllData(training_data, training_labels, configuration)
     pd.to_pickle(model, model_route)
 
 
 def trainWithAllData(training_data, training_labels, configuration):
-    criterion = configuration.loc[0, 'Criterion']
-    max_depth = configuration.loc[0, 'max_depth']
-    n_estimators = configuration.loc[0, 'n_estimators']
-    max_features = configuration.loc[0, 'max_features']
-    model =  RandomForestClassifier(
-        criterion=criterion,
-        max_depth=max_depth,
-        n_estimators=n_estimators,
-        max_features=max_features
+    c = configuration.loc[0, 'C']
+    kernel = configuration.loc[0, 'Kernel']
+    gamma = configuration.loc[0, 'Gamma']
+    model = SVC(
+        kernel=kernel,
+        C=c,
+        gamma=gamma
     )
     model.fit(training_data, training_labels)
     return model
 
 
-def printConfusionMatrix(confm, labels):
+def printConfusionMatrix(confm):
     labels = ['Grave', 'No Signos', 'Alarma', 'No Dengue']
     plt.title("Validation Sets Confusion Matrix", fontsize=18)
     heatmap = sb.heatmap(confm, annot=True, cbar=False, cmap='Blues', fmt='', xticklabels=labels, yticklabels=labels)
@@ -68,7 +68,7 @@ def dummify(dataset):
         "plaquetas",
         "leucocitos",
         "linfocitos",
-        "hematocritos"
+        "hematocritos",
     ]
     ret_dataset = dataset[[col for col in exclude if col in dataset.columns]]
     for col in dataset.columns:
@@ -78,17 +78,23 @@ def dummify(dataset):
     return ret_dataset
 
 
+def encodeLabels(classes):
+    le = LabelEncoder()
+    le.fit(classes)
+    labels = {'clase': le.transform(classes)}
+    return pd.DataFrame(labels)
+
+
 def runBestConfiguration(data, labels, configuration):
     f1_valdict = {"P1": [], "P2": [], "P3": [], "P4": [], "P5": [], "Promedio": []}
     for i, conf in configuration.iterrows():
         print(f"Running Iteration #{i+1}...")
-        val_f1, val_confm = RFCrossValidate(
+        val_f1, val_confm = SVMCrossValidate(
             data,
             labels,
-            max_depth=conf['max_depth'],
-            criterion=conf['Criterion'],
-            n_estimators=conf['n_estimators'],
-            max_features=conf['max_features']
+            C=conf['C'],
+            kernel=conf['Kernel'],
+            gamma=conf['Gamma']
         )
         for key in f1_valdict:
             f1_valdict[key].append(val_f1[key])
@@ -105,8 +111,7 @@ def getAccuracy(confm):
     return correct / total
 
 
-def RFCrossValidate(dataset, labels, max_depth=15, n_estimators=150, criterion='gini',
-                    max_features=21, k_sets=5, print_res=False):
+def SVMCrossValidate(dataset, labels, kernel='rbf', C=1.0, gamma='auto', k_sets=5, print_res=False):
     kf = KFold(n_splits=k_sets, shuffle=True, random_state=1)
     kf.get_n_splits(dataset)
 
@@ -121,15 +126,13 @@ def RFCrossValidate(dataset, labels, max_depth=15, n_estimators=150, criterion='
     for train_index, test_index in kf.split(dataset):
         X_train, X_test = dataset.loc[train_index], dataset.loc[test_index]
         Y_train, Y_test = labels.loc[train_index], labels.loc[test_index]
-        forest = RandomForestClassifier(
-            max_depth=max_depth,
-            random_state=0,
-            n_estimators=n_estimators,
-            criterion=criterion,
-            max_features=max_features
+        forest = SVC(
+            C=C,
+            gamma=gamma,
+            kernel=kernel
         )
-        forest.fit(X_train, Y_train)
-        f1_valdict[f"P{index}"], val_confm[f"cm{index+1}"] = evaluate(X_test, Y_test, forest)
+        classifier = trainClassifier(X_train, Y_train, SVC(kernel=kernel, C=C, gamma=gamma, random_state=0))
+        f1_valdict[f"P{index}"], val_confm[f"cm{index+1}"] = evaluate(X_test, Y_test, classifier)
         avgval_f1 += f1_valdict[f"P{index}"]
         confm += val_confm[f"cm{index+1}"]
         index += 1
@@ -138,6 +141,12 @@ def RFCrossValidate(dataset, labels, max_depth=15, n_estimators=150, criterion='
         print(f"Validation F1: {avgval_f1}")
     f1_valdict["Promedio"] = avgval_f1
     return f1_valdict, confm
+
+
+def trainClassifier(X_train, Y_train, svc):
+    model = make_pipeline(StandardScaler(), svc)
+    model.fit(X_train, Y_train)
+    return model
 
 
 def evaluate(X_test, Y_test, classifier, print_res=False):
@@ -163,7 +172,6 @@ def saveResults(conf_results, sheet):
     conf_results.to_excel(excel_writer=writer, sheet_name=sheet)
     writer.save()
     writer.close()
-
 
 
 if __name__ == "__main__":
