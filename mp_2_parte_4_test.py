@@ -12,23 +12,37 @@ def main():
     data_route = "./Datasets/completo_test_synth_dengue.csv"  # Default
     if len(sys.argv) > 1:
         data_route = sys.argv[1]  # Dataset passed by argument
-    model_route = "./TrainedModels/CompleteSVM.pckl"
+    distribution = "Categorical"
+    if len(sys.argv) > 2:
+        distribution = sys.argv[2]
+    model_route = "./TrainedModels/CompleteNB.pckl"
     if len(sys.argv) > 2:
         model_route = sys.argv[2]
     sheet = "Complete"
     if len(sys.argv) > 3:
         sheet = sys.argv[3]
-    dataset = pd.read_csv(data_route)
 
+    dataset = pd.read_csv(data_route)
     preProcess(dataset)
 
-    testing_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
+    if distribution.lower() == "gaussian":
+        testing_data = transformFeaturesBernoulli(dataset)
+        cont = dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+        testing_data = pd.concat([cont, testing_data], axis=1)
+    elif distribution.lower() == "categorical":
+        training_data = transformFeaturesBernoulli(dataset)
+        cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+        testing_data = pd.concat([cont, training_data], axis=1)
+    elif distribution.lower() == "bernoulli":
+        training_data = transformFeaturesBernoulli(dataset)
+        cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+        testing_data = pd.concat([cont, training_data], axis=1)
     testing_labels = encodeLabels(dataset['clase'])
 
     model = pd.read_pickle(model_route)
     test_res, test_confm = testModel(testing_data, testing_labels, model)
     printConfusionMatrix(test_confm)
-    saveResults(test_res, f'{sheet}SVM')
+    saveResults(test_res, f'{sheet}NB')
 
 
 def printConfusionMatrix(confm):
@@ -55,19 +69,36 @@ def preProcess(dataset):
     dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
-def dummify(dataset):
+def transformFeaturesBernoulli(dataset):
     exclude = [
         "plaquetas",
         "leucocitos",
         "linfocitos",
-        "hematocritos"
+        "hematocritos",
     ]
-    ret_dataset = dataset[[col for col in exclude if col in dataset.columns]]
-    for col in dataset.columns:
+    for i, col in enumerate(dataset.columns):
         if col not in exclude:
             dummified = pd.get_dummies(dataset[col])
-            ret_dataset = pd.concat([ret_dataset, dummified], axis=1)
+            if i > 1:
+                ret_dataset = pd.concat([ret_dataset, dummified], axis=1)
+            else:
+                ret_dataset = dummified
+
     return ret_dataset
+
+
+def continuousTransform(dataset):
+    cont = dataset['plaquetas'] > 200000
+    cont = pd.concat([cont, dataset['leucocitos'] > 7500], axis=1)
+    cont = pd.concat([cont, dataset['hematocritos'] > 0.445], axis=1)
+    cont = pd.concat([cont, dataset['linfocitos'] > 0.44], axis=1)
+    for i, col in enumerate(cont.columns):
+        dummified = pd.get_dummies(cont[col])
+        if i > 0:
+            retVal = pd.concat([retVal, dummified], axis=1)
+        else:
+            retVal = dummified
+    return retVal
 
 
 def testModel(testing_data, testing_labels, model):
