@@ -15,13 +15,13 @@ def main():
         data_route = sys.argv[1]  # Dataset passed by argument
     model_route = "./TrainedModels/CompleteRFC.pckl"
     if len(sys.argv) > 2:
-        model_route = sys.argv[1]
+        model_route = sys.argv[2]
     conf_route = "./Configurations/Best.xlsx"  # Default
     if len(sys.argv) > 3:
-        conf_route = sys.argv[2]  # Configuration file
+        conf_route = sys.argv[3]  # Configuration file
     sheet = "Complete"
     if len(sys.argv) > 4:
-        sheet = sys.argv[3]
+        sheet = sys.argv[4]
     dataset = pd.read_csv(data_route)
 
     configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}RFC')

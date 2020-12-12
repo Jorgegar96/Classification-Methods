@@ -15,19 +15,16 @@ def main():
         data_route = sys.argv[1]  # Dataset passed by argument
     model_route = "./TrainedModels/CompleteSVM.pckl"
     if len(sys.argv) > 2:
-        model_route = sys.argv[1]
+        model_route = sys.argv[2]
     sheet = "Complete"
     if len(sys.argv) > 3:
-        sheet = sys.argv[2]
+        sheet = sys.argv[3]
     dataset = pd.read_csv(data_route)
 
     preProcess(dataset)
 
     testing_data = dummify(dataset.loc[:, dataset.columns != 'clase'])
     testing_labels = encodeLabels(dataset['clase'])
-    scaler = StandardScaler()
-    scaler.fit(testing_data)
-    testing_data = scaler.transform(testing_data)
 
     model = pd.read_pickle(model_route)
     test_res, test_confm = testModel(testing_data, testing_labels, model)

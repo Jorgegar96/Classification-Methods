@@ -13,10 +13,10 @@ def main():
         data_route = sys.argv[1]  # Dataset passed by argument
     model_route = "./TrainedModels/CompleteRFC.pckl"
     if len(sys.argv) > 2:
-        model_route = sys.argv[1]
+        model_route = sys.argv[2]
     sheet = "Complete"
     if len(sys.argv) > 3:
-        sheet = sys.argv[2]
+        sheet = sys.argv[3]
     dataset = pd.read_csv(data_route)
 
     preProcess(dataset)

@@ -17,13 +17,13 @@ def main():
         data_route = sys.argv[1]  # Dataset passed by argument
     model_route = "./TrainedModels/CompleteSVM.pckl"
     if len(sys.argv) > 2:
-        model_route = sys.argv[1]
+        model_route = sys.argv[2]
     conf_route = "./Configurations/Best.xlsx"  # Default
     if len(sys.argv) > 3:
-        conf_route = sys.argv[2]  # Configuration file
+        conf_route = sys.argv[3]  # Configuration file
     sheet = "Complete"
     if len(sys.argv) > 4:
-        sheet = sys.argv[3]
+        sheet = sys.argv[4]
     dataset = pd.read_csv(data_route)
 
     configuration = pd.read_excel(conf_route, sheet_name=f'{sheet}SVM')
@@ -45,12 +45,12 @@ def trainWithAllData(training_data, training_labels, configuration):
     c = configuration.loc[0, 'C']
     kernel = configuration.loc[0, 'Kernel']
     gamma = configuration.loc[0, 'Gamma']
-    model = SVC(
+    svc = SVC(
         kernel=kernel,
         C=c,
         gamma=gamma
     )
-    model.fit(training_data, training_labels)
+    model = trainClassifier(training_data, training_labels, svc)
     return model
 
 
@@ -124,7 +124,6 @@ def SVMCrossValidate(dataset, labels, kernel='rbf', C=1.0, gamma='auto', k_sets=
     kf.get_n_splits(dataset)
 
     f1_valdict = {}
-    val_confm = {}
     index = 1
 
     dimension = len(np.unique(labels))
@@ -134,15 +133,10 @@ def SVMCrossValidate(dataset, labels, kernel='rbf', C=1.0, gamma='auto', k_sets=
     for train_index, test_index in kf.split(dataset):
         X_train, X_test = dataset.loc[train_index], dataset.loc[test_index]
         Y_train, Y_test = labels.loc[train_index], labels.loc[test_index]
-        forest = SVC(
-            C=C,
-            gamma=gamma,
-            kernel=kernel
-        )
         classifier = trainClassifier(X_train, Y_train, SVC(kernel=kernel, C=C, gamma=gamma, random_state=0))
-        f1_valdict[f"P{index}"], val_confm[f"cm{index+1}"] = evaluate(X_test, Y_test, classifier)
+        f1_valdict[f"P{index}"], temp_confm = evaluate(X_test, Y_test, classifier)
         avgval_f1 += f1_valdict[f"P{index}"]
-        confm += val_confm[f"cm{index+1}"]
+        confm += temp_confm
         index += 1
     avgval_f1 /= k_sets
     if print_res:

@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder, OrdinalEncoder
 from sklearn.pipeline import make_pipeline
 from openpyxl import load_workbook
 
+
 def main():
     data_route = "./Datasets/completo_train_synth_dengue.csv"  # Default
     if len(sys.argv) > 1:
@@ -27,7 +28,7 @@ def preProcess(dataset):
     dataset.replace('NO', 'No', regex=True, inplace=True)
 
 
-def transformFeatures(dataset):
+def transformFeaturesBernoulli(dataset):
     exclude = [
         "plaquetas",
         "leucocitos",
@@ -38,21 +39,44 @@ def transformFeatures(dataset):
     for i, col in enumerate(dataset.columns):
         if col not in exclude:
             dummified = pd.get_dummies(dataset[col])
-        if i > 1:
-            ret_dataset = pd.concat([ret_dataset, dummified], axis=1)
-        else:
-            ret_dataset = dummified
+            if i > 1:
+                ret_dataset = pd.concat([ret_dataset, dummified], axis=1)
+            else:
+                ret_dataset = dummified
+
+    return ret_dataset
+
+
+def transformFeaturesCateg(dataset):
+    exclude = [
+        "plaquetas",
+        "leucocitos",
+        "linfocitos",
+        "hematocritos",
+    ]
+    for i, col in enumerate(dataset.columns):
+        enc = OrdinalEncoder()
+        if col not in exclude:
+            column = dataset[col].to_numpy()
+            column = np.reshape(column, (len(column), 1))
+            enc.fit(column)
+            ordinal = np.array(enc.transform(column))
+            ordinal = pd.DataFrame({col: ordinal.flatten()})
+            if i > 1:
+                ret_dataset = pd.concat([ret_dataset, ordinal], axis=1)
+            else:
+                ret_dataset = ordinal
 
     return ret_dataset
 
 
 def continuousTransform(dataset):
     cont = dataset['plaquetas'] > 200000
-    cont = pd.concat([cont, dataset['leucocitos'] > 7000], axis=1)
-    cont = pd.concat([cont, dataset['hematocritos'] > 0.440], axis=1)
-    cont = pd.concat([cont, dataset['linfocitos'] > 0.42], axis=1)
+    cont = pd.concat([cont, dataset['leucocitos'] > 7500], axis=1)
+    cont = pd.concat([cont, dataset['hematocritos'] > 0.445], axis=1)
+    cont = pd.concat([cont, dataset['linfocitos'] > 0.44], axis=1)
     for i, col in enumerate(cont.columns):
-        dummified = pd.get_dummies(dataset[col])
+        dummified = pd.get_dummies(cont[col])
         if i > 0:
             retVal = pd.concat([retVal, dummified], axis=1)
         else:
@@ -101,21 +125,24 @@ def runConfigurations(data, labels, sheet):
 
 
 def Gaussian(model, dataset, labels):
-    training_data = transformFeatures(dataset)
+    training_data = transformFeaturesBernoulli(dataset)
     cont = dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+    training_data = pd.concat([cont, training_data], axis=1)
+    training_labels = encodeLabels(labels)
+    classifier = make_pipeline(StandardScaler(), model)
+    return NaiveBayesCrossValidate(classifier, training_data, training_labels)
+
+
+def Categorical(model, dataset, labels):
+    training_data = transformFeaturesBernoulli(dataset)
+    cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
     training_data = pd.concat([cont, training_data], axis=1)
     training_labels = encodeLabels(labels)
     return NaiveBayesCrossValidate(model, training_data, training_labels)
 
 
-def Categorical(model, dataset, labels):
-    training_data = transformFeatures(dataset)
-    training_labels = encodeLabels(labels)
-    return NaiveBayesCrossValidate(model, training_data, training_labels)
-
-
 def Bernoulli(model, dataset, labels):
-    training_data = transformFeatures(dataset)
+    training_data = transformFeaturesBernoulli(dataset)
     cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
     training_data = pd.concat([cont, training_data], axis=1)
     training_labels = encodeLabels(labels)
