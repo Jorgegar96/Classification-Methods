@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import chi2_contingency
 import seaborn as sb
 import sys
 #import xlsxwriter  # Needed to be imported to use xlsxwriter engine
@@ -24,7 +25,7 @@ def main():
             'dias_fiebre',
             'dias_ultima_fiebre'
         ],
-        print_res=True
+        print_res=False
     )
 
 
@@ -36,21 +37,26 @@ def preProcess(dataset):
 
 # Generates statistics for each feature in the dataset
 def generateStatistics(dataset, contin=None, both=None, print_res=False):
-    categ_results = {}  # Stores results for categorical features
+    categ_results = {'Info_Gain': []}  # Stores results for categorical features
     categ = [feature for feature in dataset.columns if feature not in contin]  # List of categorical features
+    categ.remove('clase')
     for feature in categ:
-        if feature != 'clase':
-            categ_results[feature] = categ_stats(feature, dataset)
+        categ_results[feature] = categ_stats(feature, dataset)
+        #pval = pValue(categ_results[feature].to_numpy())
+        categ_results['Info_Gain'].append(Gain(categ_results[feature]))
 
+    categ_results['Info_Gain'] = pd.DataFrame(categ_results['Info_Gain'], index=categ, columns=['Information Gain'])
+    categ_results['Info_Gain'].index.name = 'Attribute'
+    categ_results['Info_Gain'].sort_values(by=['Information Gain'], inplace=True, ascending=False)
     saveCategStats(categ_results)
 
     if print_res:
         for feature in categ:
-            if feature != 'clase':
-                print(categ_results[feature].head(10))
+            print(categ_results[feature].head(10))
 
     for index, feature in enumerate(contin + both):
         plotContinuous(feature, dataset, index)
+    print(f'BoxPlots saved in ./Data-Analysis/BoxPlots/')
 
 
 # Creates the contingency matrices for each categorical feature
@@ -76,6 +82,7 @@ def saveCategStats(stats):
     for stat in stats:
         stats[stat].to_excel(writer, sheet_name=stats[stat].index.name)
     writer.save()
+    print("Statistics generated in ./Data-Analysis/CategoricalStats.xlsx")
 
 
 # Plots BoxPlots for each continuous feature
@@ -85,6 +92,33 @@ def plotContinuous(feature, dataset, index):
     sb.boxplot(y="clase", x=feature, data=dataset)
     plt.savefig(f"./Data-Analysis/BoxPlots/BoxPlot{index}-{feature}.png")
     plt.show()
+
+
+def pValue(contingency):
+    stat, p, dof, expected = chi2_contingency(contingency)
+    return p
+
+
+def Gain(contingency):
+    return Entropy(contingency) - Remainder(contingency)
+
+
+def Entropy(contingency):
+    summation = 0
+    for label in contingency.columns:
+        proportion = np.sum(contingency[label]) / np.sum(contingency.to_numpy())
+        if proportion > 0:
+            summation -= proportion * np.log2(proportion)
+            continue
+    return  summation
+
+
+def Remainder(contingency):
+    summation = 0
+    for value in contingency.index:
+        proportion = np.sum(contingency.loc[value]) / np.sum(contingency.to_numpy())
+        summation += proportion * Entropy(contingency.loc[[value]])
+    return summation
 
 
 if __name__ == "__main__":
