@@ -9,35 +9,37 @@ from sklearn.preprocessing import LabelEncoder
 
 
 def main():
-    data_route = "./Datasets/completo_test_synth_dengue.csv"  # Default
+    data_route = "./Datasets/laboratorio_test_synth_dengue.csv"  # Default
     if len(sys.argv) > 1:
         data_route = sys.argv[1]  # Dataset passed by argument
     distribution = "Categorical"
     if len(sys.argv) > 2:
         distribution = sys.argv[2]
-    model_route = "./TrainedModels/CompleteNB.pckl"
+    model_route = "./TrainedModels/LabNB.pckl"
     if len(sys.argv) > 2:
         model_route = sys.argv[2]
-    sheet = "Complete"
+    sheet = "Lab"
     if len(sys.argv) > 3:
         sheet = sys.argv[3]
 
     dataset = pd.read_csv(data_route)
     preProcess(dataset)
 
+    cont_feat = [feat for feat in dataset.columns if feat in ["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+    testing_labels = encodeLabels(dataset['clase'])
+    dataset = dataset.loc[:, dataset.columns != 'clase']
     if distribution.lower() == "gaussian":
         testing_data = transformFeaturesBernoulli(dataset)
-        cont = dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+        cont = continuousTransform(dataset[cont_feat])
         testing_data = pd.concat([cont, testing_data], axis=1)
     elif distribution.lower() == "categorical":
         training_data = transformFeaturesBernoulli(dataset)
-        cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+        cont = continuousTransform(dataset[cont_feat])
         testing_data = pd.concat([cont, training_data], axis=1)
     elif distribution.lower() == "bernoulli":
         training_data = transformFeaturesBernoulli(dataset)
-        cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+        cont = continuousTransform(dataset[cont_feat])
         testing_data = pd.concat([cont, training_data], axis=1)
-    testing_labels = encodeLabels(dataset['clase'])
 
     model = pd.read_pickle(model_route)
     test_res, test_confm = testModel(testing_data, testing_labels, model)
@@ -88,16 +90,23 @@ def transformFeaturesBernoulli(dataset):
 
 
 def continuousTransform(dataset):
-    cont = dataset['plaquetas'] > 200000
-    cont = pd.concat([cont, dataset['leucocitos'] > 7500], axis=1)
-    cont = pd.concat([cont, dataset['hematocritos'] > 0.445], axis=1)
-    cont = pd.concat([cont, dataset['linfocitos'] > 0.44], axis=1)
-    for i, col in enumerate(cont.columns):
-        dummified = pd.get_dummies(cont[col])
-        if i > 0:
-            retVal = pd.concat([retVal, dummified], axis=1)
-        else:
-            retVal = dummified
+    cont = None
+    retVal = pd.DataFrame()
+    if 'plaquetas' in dataset.columns:
+        cont = dataset['plaquetas'] > 200000
+    if 'leucocitos' in dataset.columns:
+        cont = pd.concat([cont, dataset['leucocitos'] > 7500], axis=1)
+    if 'hematocritos' in dataset.columns:
+        cont = pd.concat([cont, dataset['hematocritos'] > 0.445], axis=1)
+    if 'linfocitos' in dataset.columns:
+        cont = pd.concat([cont, dataset['linfocitos'] > 0.44], axis=1)
+    if cont is not None:
+        for i, col in enumerate(cont.columns):
+            dummified = pd.get_dummies(cont[col])
+            if i > 0:
+                retVal = pd.concat([retVal, dummified], axis=1)
+            else:
+                retVal = dummified
     return retVal
 
 

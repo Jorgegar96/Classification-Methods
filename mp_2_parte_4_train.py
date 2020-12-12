@@ -13,16 +13,16 @@ from sklearn.preprocessing import LabelEncoder
 
 
 def main():
-    data_route = "./Datasets/completo_train_synth_dengue.csv"  # Default
+    data_route = "./Datasets/laboratorio_train_synth_dengue.csv"  # Default
     if len(sys.argv) > 1:
         data_route = sys.argv[1]  # Dataset passed by argument
     distribution = "Categorical"
     if len(sys.argv) > 2:
         distribution = sys.argv[2]
-    model_route = "./TrainedModels/CompleteNB.pckl"
+    model_route = "./TrainedModels/LabNB.pckl"
     if len(sys.argv) > 3:
         model_route = sys.argv[3]
-    sheet = "Complete"
+    sheet = "Lab"
     if len(sys.argv) > 4:
         sheet = sys.argv[4]
 
@@ -34,7 +34,7 @@ def main():
     saveResults(val_res, f"{sheet}NB")
     printConfusionMatrix(val_confm)
 
-    model = trainWithAllData(training_data, training_data['clase'], distribution)
+    model = trainWithAllData(training_data.loc[:, training_data.columns != 'clase'], training_data['clase'], distribution)
     pd.to_pickle(model, model_route)
 
 
@@ -45,19 +45,20 @@ def preProcess(dataset):
 
 
 def trainWithAllData(dataset, labels, distribution):
+    cont_feat = [feat for feat in dataset.columns if feat in ["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
     if distribution.lower() == "gaussian":
         training_data = transformFeaturesBernoulli(dataset)
-        cont = dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+        cont = dataset[cont_feat]
         training_data = pd.concat([cont, training_data], axis=1)
         model = make_pipeline(StandardScaler(), GaussianNB())
     elif distribution.lower() == "categorical":
         training_data = transformFeaturesBernoulli(dataset)
-        cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+        cont = continuousTransform(dataset[cont_feat])
         training_data = pd.concat([cont, training_data], axis=1)
         model = CategoricalNB()
     elif distribution.lower() == "bernoulli":
         training_data = transformFeaturesBernoulli(dataset)
-        cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+        cont = continuousTransform(dataset[cont_feat])
         training_data = pd.concat([cont, training_data], axis=1)
         model = BernoulliNB
     training_labels = encodeLabels(labels)
@@ -111,7 +112,8 @@ def getAccuracy(confm):
 
 def Gaussian(model, dataset, labels):
     training_data = transformFeaturesBernoulli(dataset)
-    cont = dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+    cont_feat = [feat for feat in dataset.columns if feat in ["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+    cont = dataset[cont_feat]
     training_data = pd.concat([cont, training_data], axis=1)
     training_labels = encodeLabels(labels)
     classifier = make_pipeline(StandardScaler(), model)
@@ -120,7 +122,8 @@ def Gaussian(model, dataset, labels):
 
 def Categorical(model, dataset, labels):
     training_data = transformFeaturesBernoulli(dataset)
-    cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+    cont_feat = [feat for feat in dataset.columns if feat in ["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+    cont = continuousTransform(dataset[cont_feat])
     training_data = pd.concat([cont, training_data], axis=1)
     training_labels = encodeLabels(labels)
     return NaiveBayesCrossValidate(model, training_data, training_labels)
@@ -128,7 +131,8 @@ def Categorical(model, dataset, labels):
 
 def Bernoulli(model, dataset, labels):
     training_data = transformFeaturesBernoulli(dataset)
-    cont = continuousTransform(dataset[["plaquetas", "leucocitos", "linfocitos", "hematocritos"]])
+    cont_feat = [feat for feat in dataset.columns if feat in ["plaquetas", "leucocitos", "linfocitos", "hematocritos"]]
+    cont = continuousTransform(dataset[cont_feat])
     training_data = pd.concat([cont, training_data], axis=1)
     training_labels = encodeLabels(labels)
     return NaiveBayesCrossValidate(model, training_data, training_labels)
@@ -196,16 +200,23 @@ def transformFeaturesBernoulli(dataset):
 
 
 def continuousTransform(dataset):
-    cont = dataset['plaquetas'] > 200000
-    cont = pd.concat([cont, dataset['leucocitos'] > 7500], axis=1)
-    cont = pd.concat([cont, dataset['hematocritos'] > 0.445], axis=1)
-    cont = pd.concat([cont, dataset['linfocitos'] > 0.44], axis=1)
-    for i, col in enumerate(cont.columns):
-        dummified = pd.get_dummies(cont[col])
-        if i > 0:
-            retVal = pd.concat([retVal, dummified], axis=1)
-        else:
-            retVal = dummified
+    cont = None
+    retVal = pd.DataFrame()
+    if 'plaquetas' in dataset.columns:
+        cont = dataset['plaquetas'] > 200000
+    if 'leucocitos' in dataset.columns:
+        cont = pd.concat([cont, dataset['leucocitos'] > 7500], axis=1)
+    if 'hematocritos' in dataset.columns:
+        cont = pd.concat([cont, dataset['hematocritos'] > 0.445], axis=1)
+    if 'linfocitos' in dataset.columns:
+        cont = pd.concat([cont, dataset['linfocitos'] > 0.44], axis=1)
+    if cont is not None:
+        for i, col in enumerate(cont.columns):
+            dummified = pd.get_dummies(cont[col])
+            if i > 0:
+                retVal = pd.concat([retVal, dummified], axis=1)
+            else:
+                retVal = dummified
     return retVal
 
 
