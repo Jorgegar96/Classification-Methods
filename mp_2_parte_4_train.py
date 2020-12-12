@@ -36,6 +36,7 @@ def main():
 
     model = trainWithAllData(training_data.loc[:, training_data.columns != 'clase'], training_data['clase'], distribution)
     pd.to_pickle(model, model_route)
+    print(f'Model saved in {model_route}')
 
 
 # Preprocess data to fix instances of 'NO' and NaN in the dataframe
@@ -228,6 +229,7 @@ def saveResults(conf_results, sheet):
     conf_results.to_excel(excel_writer=writer, sheet_name=sheet)
     writer.save()
     writer.close()
+    print(f'Results saved in {conf_route}, sheet {sheet}')
 
 
 def encodeLabels(classes):

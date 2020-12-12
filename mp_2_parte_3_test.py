@@ -87,6 +87,7 @@ def saveResults(conf_results, sheet):
     conf_results.to_excel(excel_writer=writer, sheet_name=sheet)
     writer.save()
     writer.close()
+    print(f'Results saved in {conf_route}, sheet {sheet}')
 
 
 if __name__ == "__main__":
